@@ -46,6 +46,27 @@ module Bigint = struct
                        ((if sign = Pos then "" else "-") ::
                         (map string_of_int reversed))
 
+
+    let rec cmp' list1 list2 = 
+         match (list1, list2) with 
+         | list1, [] -> 1
+         | [], list2 -> 0
+         | car1::cdr1, car2::cdr2 ->
+             if car1 > car2
+             then 1
+             else if car1 < car2
+             then 0
+             else cmp' cdr1 cdr2
+
+    let cmp list1 list2 =
+        let len1 = List.length list1 in
+        let len2 = List.length list2 in
+            if len1 > len2
+            then 1
+            else if len1 < len2
+            then 0
+            else cmp' list1 list2
+
     let rec add' list1 list2 carry = match (list1, list2, carry) with
         | list1, [], 0       -> list1
         | [], list2, 0       -> list2
@@ -55,10 +76,27 @@ module Bigint = struct
           let sum = car1 + car2 + carry
           in  sum mod radix :: add' cdr1 cdr2 (sum / radix)
 
+    let rec sub' list1 list2 carry = match (list1, list2, carry) with
+        | list1, [], 0       -> list1
+        | [], list2, 0       -> list2
+        | list1, [], carry   -> sub' list1 [carry] 0
+        | [], list2, carry   -> sub' [carry] list2 0
+        | car1::cdr1, car2::cdr2, carry ->
+          let dif = car1 - car2 - carry in
+              dif mod radix :: sub' cdr1 cdr2 (dif/radix)
+
     let add (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
         if neg1 = neg2
         then Bigint (neg1, add' value1 value2 0)
-        else zero
+        else if (neg1 = Pos && neg2 = Neg)
+        then (
+            if (cmp value1 value2) = 1
+            then Bigint(neg1, sub' value1 value2 0)
+            else Bigint(neg2, sub' value2 value1 0))
+        else (
+            if (cmp value1 value2) = 1
+            then Bigint(Neg, sub' value1 value2 0)  
+            else Bigint(Pos, sub' value2 value1 0))    
 
     let sub = add
 
