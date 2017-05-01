@@ -82,8 +82,12 @@ module Bigint = struct
         | list1, [], carry   -> sub' list1 [carry] 0
         | [], list2, carry   -> sub' [carry] list2 0
         | car1::cdr1, car2::cdr2, carry ->
-          let dif = car1 - car2 - carry in
-              dif mod radix :: sub' cdr1 cdr2 (dif/radix)
+          let diff = car1 - car2 - carry in
+              if (diff < 0 && (diff mod radix <> 0))
+              then (diff + radix) mod radix :: sub' cdr1 cdr2 ((-diff/radix)+1)
+              else if (diff < 0 && (diff mod radix = 0))
+              then 0 :: sub' cdr1 cdr2 (-diff/radix) 
+              else diff :: sub' cdr1 cdr2 0
 
     let add (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
         if neg1 = neg2
