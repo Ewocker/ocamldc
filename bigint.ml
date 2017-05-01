@@ -11,6 +11,7 @@ module Bigint = struct
 
     let car       = List.hd
     let cdr       = List.tl
+    let len       = List.length
     let map       = List.map
     let reverse   = List.rev
     let strcat    = String.concat
@@ -20,9 +21,15 @@ module Bigint = struct
 
     let charlist_of_string str = 
         let last = strlen str - 1
+        in  let rec del_zero inList =
+            if len inList = 0
+            then inList
+            else if car inList = '0'
+            then del_zero (cdr inList)
+            else inList
         in  let rec charlist pos result =
             if pos < 0
-            then result
+            then del_zero result
             else charlist (pos - 1) (str.[pos] :: result)
         in  charlist last []
 
@@ -86,7 +93,7 @@ module Bigint = struct
               if (diff < 0 && (diff mod radix <> 0))
               then (diff + radix) mod radix :: sub' cdr1 cdr2 ((-diff/radix)+1)
               else if (diff < 0 && (diff mod radix = 0))
-              then 0 :: sub' cdr1 cdr2 (-diff/radix) 
+              then 0 :: sub' cdr1 cdr2 (-diff/radix)
               else diff :: sub' cdr1 cdr2 0
 
     let add (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
@@ -102,7 +109,19 @@ module Bigint = struct
             then Bigint(Neg, sub' value1 value2 0)  
             else Bigint(Pos, sub' value2 value1 0))    
 
-    let sub = add
+    let sub (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
+        if (neg1 = neg2 && neg1 = Pos)
+        then (
+            if (cmp value1 value2) = 1
+            then Bigint(Pos, sub' value1 value2 0)
+            else Bigint(Neg, sub' value2 value1 0))
+        else if ((neg1 = neg2 && neg1 = Neg))
+        then Bigint(Neg, add' value1 value2 0)
+        else (
+            if (cmp value1 value2) =1
+            then Bigint(neg1, add' value1 value2 0)
+            else Bigint(neg2, add' value1 value2 0))
+    
 
     let mul = add
 
