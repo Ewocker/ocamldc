@@ -188,10 +188,32 @@ module Bigint = struct
                 then Bigint (Pos, product)
                 else Bigint (Neg, product)
 
+    let rec divrem' (dividend, powerof2, divisor') =
+        if (cmp' divisor' dividend) = 1
+        then [0], dividend
+        else let quotient, remainder =
+                 divrem' (dividend, double_bigint_list powerof2,
+                                    double_bigint_list divisor')
+             in  if (cmp' divisor' remainder) = 1
+                then quotient, remainder
+                else (add' quotient powerof2 0),
+                      (trimzeros(sub' remainder divisor' 0))
 
-    let div = add
+    let divrem ((Bigint (neg1, value1)), (Bigint (neg2, value2))) =
+        let quotient, remainder = divrem' (value1, [1], value2)
+        in if neg1 = neg2
+          then Bigint (Pos, quotient),Bigint (Pos, remainder)
+          else Bigint (Neg, quotient),Bigint (Pos, remainder)
 
-    let rem = add
+    let rem (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
+        let _, remainder = divrem ((Bigint (neg1, value1)),
+                                  (Bigint (neg2, value2)))
+        in remainder
+
+    let div (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
+        let quotient, _ = divrem ((Bigint (neg1, value1)),
+                                (Bigint (neg2, value2)))
+        in quotient
 
     let pow = add
 
