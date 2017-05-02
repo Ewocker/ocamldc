@@ -19,14 +19,27 @@ module Bigint = struct
     let strsub    = String.sub
     let zero      = Bigint (Pos, [])
 
+    (*Mackey*)
+    let trimzeros list =
+        let rec trimzeros' list' = match list' with
+            | []       -> []
+            | [0]      -> []
+            | car::cdr ->
+                let cdr' = trimzeros' cdr
+                in  match car, cdr' with
+                    | 0, [] -> []
+                    | car, cdr' -> car::cdr'
+        in trimzeros' list
+
+    let rec del_zero inList = 
+        if len inList = 0
+        then inList
+        else if car inList = '0'
+        then del_zero (cdr inList)
+        else inList
+
     let charlist_of_string str = 
         let last = strlen str - 1
-        in  let rec del_zero inList =
-            if len inList = 0
-            then inList
-            else if car inList = '0'
-            then del_zero (cdr inList)
-            else inList
         in  let rec charlist pos result =
             if pos < 0
             then del_zero result
@@ -54,7 +67,7 @@ module Bigint = struct
                         (map string_of_int reversed))
 
 
-    let rec cmp' list1 list2 = 
+    let rec cmp_old' list1 list2 = 
          match (list1, list2) with 
          | list1, [] -> 1
          | [], list2 -> 0
@@ -62,17 +75,38 @@ module Bigint = struct
              if car1 > car2
              then 1
              else if car1 < car2
-             then 0
-             else cmp' cdr1 cdr2
+             then -1
+             else cmp_old' cdr1 cdr2
 
-    let cmp list1 list2 =
+    let cmp_old list1 list2 =
         let len1 = List.length list1 in
         let len2 = List.length list2 in
             if len1 > len2
             then 1
             else if len1 < len2
-            then 0
-            else cmp' list1 list2
+            then -1
+            else cmp_old' list1 list2
+
+    let rec cmp' list1 list2 = match (list1, list2) with
+        | [], []                 ->  0
+        | list1, []              ->  1
+        | [], list2              -> -1
+        | car1::cdr1, car2::cdr2 -> 
+            let retval = cmp' cdr1 cdr2
+            in if retval = 0 && car1 != car2
+               then (if car1 > car2
+                    then 1
+                    else (if car1 < car2
+                    then -1
+                    else 0))
+              else retval
+
+    let cmp (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
+        if neg1 = neg2
+        then cmp' value1 value2
+        else if neg1 = Neg
+            then -1
+            else 1
 
     let rec add' list1 list2 carry = match (list1, list2, carry) with
         | list1, [], 0       -> list1
@@ -101,29 +135,59 @@ module Bigint = struct
         then Bigint (neg1, add' value1 value2 0)
         else if (neg1 = Pos && neg2 = Neg)
         then (
-            if (cmp value1 value2) = 1
+            if (cmp_old value1 value2) = 1
             then Bigint(neg1, sub' value1 value2 0)
             else Bigint(neg2, sub' value2 value1 0))
         else (
-            if (cmp value1 value2) = 1
+            if (cmp_old value1 value2) = 1
             then Bigint(Neg, sub' value1 value2 0)  
             else Bigint(Pos, sub' value2 value1 0))    
 
     let sub (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
         if (neg1 = neg2 && neg1 = Pos)
         then (
-            if (cmp value1 value2) = 1
+            if (cmp_old value1 value2) = 1
             then Bigint(Pos, sub' value1 value2 0)
             else Bigint(Neg, sub' value2 value1 0))
         else if ((neg1 = neg2 && neg1 = Neg))
         then Bigint(Neg, add' value1 value2 0)
         else (
-            if (cmp value1 value2) =1
+            if (cmp_old value1 value2) =1
             then Bigint(neg1, add' value1 value2 0)
             else Bigint(neg2, add' value1 value2 0))
-    
 
-    let mul = add
+(* Fail for large num    
+    let rec mul' value1 value2 = 
+        if (trimzeros value2) = [1]
+        then value1
+        else (add' value1 (mul' value1 (sub' value2 [1] 0)) 0)
+
+    let mul (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
+        if neg1 = neg2
+        then Bigint (Pos, mul' value1 value2)
+        else Bigint (Neg, mul' value1 value2)
+*)
+    let double_bigint_list number =
+        add' number number 0
+
+    let rec mul' (multiplier, powerof2, multiplicand') =
+        if (cmp' powerof2 multiplier) = 1
+        then multiplier, []
+        else let remainder, product =
+            mul' (multiplier, double_bigint_list powerof2,
+                              double_bigint_list multiplicand')
+         in if (cmp' powerof2 remainder) = 1
+            then remainder, product
+            else (trimzeros(sub' remainder powerof2 0)),
+                (add' product multiplicand' 0)
+
+    let mul (Bigint (neg1, value1)) (Bigint (neg2, value2)) =
+        let _, product =
+            mul' (value1, [1], value2) in
+                if neg1 = neg2
+                then Bigint (Pos, product)
+                else Bigint (Neg, product)
+
 
     let div = add
 
